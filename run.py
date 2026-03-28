@@ -118,17 +118,40 @@ def download_video(bvid, title):
     os.system(cmd)
     
     print("======== 下载完成 ========\n")
+def load_ai_model():
+    # 核心逻辑：获取当前 .exe 或 .py 所在的文件夹路径
+    if getattr(sys, 'frozen', False):
+        # 打包后的 exe 环境
+        base_path = os.path.dirname(sys.executable)
+    else:
+        # 普通 python 环境
+        base_path = os.path.dirname(os.path.abspath(__file__))
 
+    model_path = os.path.join(base_path, 'music_model.pkl')
+    
+    # 打印一下路径，方便在 CMD 里调试看它到底在找哪儿
+    print(f"正在尝试从以下位置加载 AI 模型: {model_path}")
+
+    if not os.path.exists(model_path):
+        # 这里会打印出程序实际寻找的路径，如果报错，你会一眼看到问题
+        print(f"❌ 错误：在文件夹内找不到 music_model.pkl")
+        print(f"请检查文件是否存在于: {base_path}")
+        return None
+
+    try:
+        model = joblib.load(model_path)
+        print("✅ AI 模型加载成功！")
+        return model
+    except Exception as e:
+        print(f"❌ 模型加载失败，可能是版本不匹配：\n{e}")
+        return None
 def main():
     print("===============================")
     print("   校园午唱 AI 自动筛选下载器  ")
     print("===============================\n")
     
-    try:
-        model = joblib.load('music_model.pkl')
-    except Exception as e:
-        print("错误：找不到 music_model.pkl 模型文件，请检查！")
-        sys.exit()
+    model = load_ai_model()
+    if model is None: sys.exit()
 
     while True:
         # 为了让第一步点播就在原位，不再在上面打印多余信息
