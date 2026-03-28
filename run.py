@@ -35,7 +35,6 @@ def init_visitor():
         'User-Agent': random.choice(USER_AGENTS),
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8'
     }
-    print("正在获取 B站 游客通行证，伪装成正常访客...")
     try:
         # 访问主页，Session 会自动记住返回的匿名 Cookie
         session.get("https://www.bilibili.com", headers=headers, timeout=5)
@@ -146,16 +145,12 @@ def load_ai_model():
         print(f"❌ 模型加载失败，可能是版本不匹配：\n{e}")
         return None
 def main():
-    print("===============================")
-    print("   校园午唱 AI 自动筛选下载器  ")
-    print("===============================\n")
-    
     model = load_ai_model()
     if model is None: sys.exit()
 
     while True:
         # 为了让第一步点播就在原位，不再在上面打印多余信息
-        song = input("请输入想点播的歌曲名 (输入 'q' 退出): ")
+        song = input("请输入歌曲名")
         if song.lower() == 'q': break
         
         mode = input("请选择模式 (1.手动 2.半自动 3.全自动): ")
@@ -193,7 +188,7 @@ def main():
             elif mode == '3': # 全自动
                 best = ranked_videos[0]
                 if best['score'] == 0:
-                    print(f"\n⚠️ 警告：AI扫遍了 {total_count} 个视频，认为排名第一的视频也不适合午唱(得分0)！")
+                    print(f"\n⚠️ 警告：AI扫遍了 {total_count} 个视频，认为排名第一的视频也不适合(得分0)！")
                     print(f"标题：{best['title']}")
                     force = input("是否强制下载？(y/n): ")
                     if force.lower() == 'y':
