@@ -1,6 +1,5 @@
 name: Build Win7 32-bit EXE
 
-# 触发条件：手动点击，或者代码推送到 main 分支时触发
 on:
   workflow_dispatch:
   push:
@@ -14,21 +13,23 @@ jobs:
     - name: 1. 拉取代码
       uses: actions/checkout@v4
 
-    - name: 2. 设置纯净的 Python 3.8 (核心：必须是 32位 x86)
+    - name: 2. 设置纯净的 Python 3.8 (x86 32位)
       uses: actions/setup-python@v5
       with:
-        python-version: '3.8.10' # 支持 Win7 的最终经典版本
-        architecture: 'x86'      # 强制 32 位
+        python-version: '3.8.10'
+        architecture: 'x86'
 
-    - name: 3. 安装依赖库
+    - name: 3. 安装依赖库 (锁定兼容32位的版本)
       run: |
         python -m pip install --upgrade pip
-        pip install pyinstaller pandas scikit-learn jieba joblib requests
+        # 先安装没有编译问题的库
+        pip install pyinstaller pandas jieba joblib requests
+        # 再安装科学计算库，并强制指定兼容 Win32 的旧版本
+        pip install numpy==1.21.6 scipy==1.7.3 scikit-learn==1.0.2
 
     - name: 4. 使用 PyInstaller 打包成单个 EXE
-      # -F 代表打包为单个文件，-c 代表带控制台黑框(我们需要输入互动)
       run: |
-        pyinstaller -F -c run.py --name LunchSongAI
+        pyinstaller -c run.py --name LunchSongAI
 
     - name: 5. 上传生成的 EXE 供你下载
       uses: actions/upload-artifact@v4
