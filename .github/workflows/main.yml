@@ -1,35 +1,37 @@
-name: Build Win7 Compatible EXE
+name: Build Win7 32-bit EXE
 
+# 触发条件：手动点击，或者代码推送到 main 分支时触发
 on:
-  workflow_dispatch: # 允许你手动点击按钮触发打包
+  workflow_dispatch:
+  push:
+    branches: [ "main" ]
 
 jobs:
   build:
-    # 核心密码：使用 Server 2019 而不是 latest，它的底层依赖更接近 Win7 时代
-    runs-on: windows-2019 
+    runs-on: windows-latest
 
     steps:
-    - name: Checkout Code
-      uses: actions/checkout@v3
+    - name: 1. 拉取代码
+      uses: actions/checkout@v4
 
-    - name: Set up Python 3.8.10
-      uses: actions/setup-python@v4
+    - name: 2. 设置纯净的 Python 3.8 (核心：必须是 32位 x86)
+      uses: actions/setup-python@v5
       with:
-        python-version: '3.8.10' # 核心密码：强行降级到兼容 Win7 的最高版本
+        python-version: '3.8.10' # 支持 Win7 的最终经典版本
+        architecture: 'x86'      # 强制 32 位
 
-    - name: Install Dependencies
+    - name: 3. 安装依赖库
       run: |
         python -m pip install --upgrade pip
-        # 安装你代码需要的库，外加指定老版本的 pyinstaller 确保兼容性
-        pip install requests pandas scikit-learn jieba joblib yt-dlp pyinstaller==5.13.2
+        pip install pyinstaller pandas scikit-learn jieba joblib requests
 
-    - name: Build EXE with PyInstaller
+    - name: 4. 使用 PyInstaller 打包成单个 EXE
+      # -F 代表打包为单个文件，-c 代表带控制台黑框(我们需要输入互动)
       run: |
-        # -F 代表打包成单文件， -i NONE 取消图标(避免一些奇怪的报错)
-        pyinstaller -F run.py
+        pyinstaller -F -c run.py --name LunchSongAI
 
-    - name: Upload Artifact
-      uses: actions/upload-artifact@v3
+    - name: 5. 上传生成的 EXE 供你下载
+      uses: actions/upload-artifact@v4
       with:
-        name: LunchSong-Downloader-Win7
-        path: dist/run.exe
+        name: LunchSongAI_Win7_32bit
+        path: dist/LunchSongAI.exe
