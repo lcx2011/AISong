@@ -28,7 +28,7 @@ jobs:
     - name: 4. 使用 PyInstaller 打包成文件夹模式
       # 去掉了 -F，保留 -c (显示控制台)
       run: |
-        pyinstaller -c run.py --name LunchSongAI
+        pyinstaller -c --collect-all sklearn run.py --name LunchSongAI
 
     - name: 5. 上传生成的文件夹
       uses: actions/upload-artifact@v4
