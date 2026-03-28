@@ -1,38 +1,64 @@
-name: Build Win7 32-bit Folder
+name: Build for Win7 32-bit
 
+# 触发条件：当你推送代码，或者手动点击运行按钮时触发
 on:
-  workflow_dispatch:
   push:
-    branches: [ "main" ]
+    branches: [ main, master ]
+  workflow_dispatch: 
 
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: windows-latest # 使用 Windows 服务器
 
     steps:
-    - name: 1. 拉取代码
+    - name: Checkout Code
       uses: actions/checkout@v4
 
-    - name: 2. 设置纯净的 Python 3.8 (x86 32位)
+    # 核心魔法：配置 Python 3.8 32位版本 (Win7 x86 兼容的最高版本)
+    - name: Set up Python 3.8 (32-bit)
       uses: actions/setup-python@v5
       with:
-        python-version: '3.8.10'
+        python-version: '3.8'
         architecture: 'x86'
 
-    - name: 3. 安装依赖库 (锁定兼容32位的版本)
+    - name: Install Dependencies
+      shell: cmd
       run: |
         python -m pip install --upgrade pip
-        pip install pyinstaller pandas jieba joblib requests
-        pip install numpy==1.21.6 scipy==1.7.3 scikit-learn==1.0.2
+        echo 正在安装 32位 兼容的依赖库...
+        pip install pandas scikit-learn requests jieba joblib pyinstaller
 
-    - name: 4. 使用 PyInstaller 打包成文件夹模式
-      # 去掉了 -F，保留 -c (显示控制台)
+    # 运行你的训练脚本，这会生成 music_model.pkl
+    - name: Train AI Model
+      shell: cmd
       run: |
-        pyinstaller -c --collect-all sklearn run.py --name LunchSongAI
+        echo 正在读取 training_data.csv 并训练模型...
+        python train.py
+        
+    # 使用 PyInstaller 打包成单文件 exe
+    - name: Build EXE with PyInstaller
+      shell: cmd
+      run: |
+        echo 正在编译打包 32位 EXE...
+        pyinstaller --noconfirm --onefile --console run.py
+        
+    # 将模型、程序和下载工具放到同一个文件夹中
+    - name: Prepare Release Folder
+      shell: cmd
+      run: |
+        mkdir release_package
+        copy dist\run.exe release_package\Bili_Downloader.exe
+        copy music_model.pkl release_package\
+        
+    # 贴心功能：自动下载 32位版(x86)的 yt-dlp 放入包中
+    - name: Download yt-dlp (32-bit)
+      shell: cmd
+      run: |
+        curl -L -o release_package\yt-dlp.exe https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_x86.exe
 
-    - name: 5. 上传生成的文件夹
+    # 将这个文件夹作为成品上传，供你下载
+    - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: LunchSongAI_Win7_32bit_Folder
-        # 核心修改：这里指向整个目录路径
-        path: dist/LunchSongAI/
+        name: Win7_32bit_Package
+        path: release_package\
