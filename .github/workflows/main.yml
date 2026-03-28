@@ -1,4 +1,4 @@
-name: Build Win7 32-bit EXE
+name: Build Win7 32-bit Folder
 
 on:
   workflow_dispatch:
@@ -22,17 +22,17 @@ jobs:
     - name: 3. 安装依赖库 (锁定兼容32位的版本)
       run: |
         python -m pip install --upgrade pip
-        # 先安装没有编译问题的库
         pip install pyinstaller pandas jieba joblib requests
-        # 再安装科学计算库，并强制指定兼容 Win32 的旧版本
         pip install numpy==1.21.6 scipy==1.7.3 scikit-learn==1.0.2
 
-    - name: 4. 使用 PyInstaller 打包成单个 EXE
+    - name: 4. 使用 PyInstaller 打包成文件夹模式
+      # 去掉了 -F，保留 -c (显示控制台)
       run: |
         pyinstaller -c run.py --name LunchSongAI
 
-    - name: 5. 上传生成的 EXE 供你下载
+    - name: 5. 上传生成的文件夹
       uses: actions/upload-artifact@v4
       with:
-        name: LunchSongAI_Win7_32bit
-        path: dist/LunchSongAI.exe
+        name: LunchSongAI_Win7_32bit_Folder
+        # 核心修改：这里指向整个目录路径
+        path: dist/LunchSongAI/
