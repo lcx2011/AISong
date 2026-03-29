@@ -1,4 +1,4 @@
-name: Build for Win7 32-bit (Fixed Compatibility)
+name: Build for Win7 32-bit (Verified x86 Wheels)
 
 on:
   push:
@@ -13,54 +13,60 @@ jobs:
     - name: Checkout Code
       uses: actions/checkout@v4
 
-    # 1. 依然保持 Python 3.8 32位 (Win7 最后的版本)
     - name: Set up Python 3.8 (32-bit)
       uses: actions/setup-python@v5
       with:
         python-version: '3.8.10'
         architecture: 'x86'
 
-    # 2. 核心修复：锁定旧版本，强制只安装二进制 Wheel，禁止编译
     - name: Install Dependencies
       shell: cmd
       run: |
-        python -m pip install --upgrade pip
-        echo 正在安装兼容 Win7 32位的预编译库...
+        python -m pip install --upgrade pip setuptools wheel
+        echo 正在强制安装存在 32位二进制文件的特定版本...
         
-        :: 先安装 numpy 和 scipy (锁定到最后提供 win32 稳定 binary 的版本)
-        pip install --only-binary=:all: numpy==1.23.5
-        pip install --only-binary=:all: scipy==1.9.3
+        :: 这一行是关键！按顺序安装，不许编译
+        :: numpy 1.24.4, scipy 1.9.1, pandas 2.0.3, scikit-learn 1.3.2 是 32位 CP38 的最后一组稳定组合
+        python -m pip install --only-binary=:all: numpy==1.24.4
+        python -m pip install --only-binary=:all: scipy==1.9.1
+        python -m pip install --only-binary=:all: pandas==2.0.3
+        python -m pip install --only-binary=:all: scikit-learn==1.3.2
         
-        :: 安装 pandas 和 scikit-learn (锁定版本)
-        pip install --only-binary=:all: pandas==1.5.3
-        pip install --only-binary=:all: scikit-learn==1.2.2
-        
-        :: 安装其他不涉及复杂编译的库
-        pip install requests jieba joblib pyinstaller
+        :: 安装其他轻量级库
+        python -m pip install requests jieba joblib pyinstaller
 
-    # 3. 运行训练 (与之前相同)
+    - name: Verify Installation
+      shell: cmd
+      run: |
+        echo 验证库是否安装成功...
+        python -c "import sklearn; print('Scikit-learn version:', sklearn.__version__)"
+        python -c "import pandas; print('Pandas version:', pandas.__version__)"
+
     - name: Train AI Model
       shell: cmd
       run: |
+        echo 开始训练模型...
         python train.py
         
-    # 4. 编译打包 (加入 --clean 确保不冲突)
     - name: Build EXE with PyInstaller
       shell: cmd
       run: |
-        pyinstaller --noconfirm --onefile --console --clean run.py
+        :: 加入 --collect-submodules sklearn 确保 AI 模型能被正确识别
+        pyinstaller --noconfirm --onefile --console --clean ^
+                    --collect-submodules sklearn ^
+                    run.py
         
-    # 5. 准备发布包
     - name: Prepare Release Folder
       shell: cmd
       run: |
         mkdir release_package
         copy dist\run.exe release_package\Bili_Downloader.exe
         if exist music_model.pkl copy music_model.pkl release_package\
+        :: 下载 32 位专用下载器
         curl -L -o release_package\yt-dlp.exe https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_x86.exe
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: Win7_32bit_Final_Build
+        name: Bili_Win7_32bit_Ready
         path: release_package\
