@@ -8,7 +8,12 @@ from sklearn.compose import ColumnTransformer
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestClassifier
+# -*- coding: utf-8 -*-
+import sys
+import io
 
+# 设置标准输出为 UTF-8
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 # 1. 自定义分词函数，告诉 AI 怎么理解中文
 def jieba_tokenize(text):
     return jieba.lcut(text)
