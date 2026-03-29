@@ -1,4 +1,4 @@
-name: Build for Win7 32-bit (Verified x86 Wheels)
+name: Build for Win7 32-bit (Folder Mode)
 
 on:
   push:
@@ -23,63 +23,56 @@ jobs:
       shell: cmd
       run: |
         python -m pip install --upgrade pip setuptools wheel
+        echo 正在安装 Python 3.8 32位 黄金版本组合...
         
-        echo 正在安装 Python 3.8 时代最稳定的 32位 兼容组合...
-        :: 这些版本确定有 win32 预编译包，且不需要 Meson 编译环境
-        
-        :: 1. 先安装基础工具
-        python -m pip install threadpoolctl joblib
-        
-        :: 2. 安装 NumPy 1.19.5 (Python 3.8 32位最稳的版本)
+        :: 强制安装具有 32位 预编译包的版本，完全避开编译
         python -m pip install --only-binary=:all: numpy==1.19.5
-        
-        :: 3. 安装 SciPy 1.5.4 (这是 32位时代的巅峰版本，完全避开现在的构建错误)
         python -m pip install --only-binary=:all: scipy==1.5.4
-        
-        :: 4. 安装 Scikit-learn 0.24.2 (极其稳定的版本，完美适配上面的库)
         python -m pip install --only-binary=:all: scikit-learn==0.24.2
-        
-        :: 5. 安装 Pandas 1.1.5 (Win7 32位推荐版本)
         python -m pip install --only-binary=:all: pandas==1.1.5
         
-        :: 6. 安装其他工具
-        python -m pip install requests jieba pyinstaller==5.13.2
-
-    - name: Verify Installation
-      shell: cmd
-      run: |
-        echo 验证库是否安装成功...
-        python -c "import sklearn; print('Scikit-learn version:', sklearn.__version__)"
-        python -c "import pandas; print('Pandas version:', pandas.__version__)"
+        :: 安装必备工具（锁定 PyInstaller 版本以增加 Win7 兼容性）
+        python -m pip install requests jieba joblib threadpoolctl
+        python -m pip install pyinstaller==5.13.2
 
     - name: Train AI Model
       shell: cmd
       run: |
-        echo 开始训练模型...
+        echo 正在 Action 中训练模型，确保模型与环境完全匹配...
         python train.py
         
-    - name: Build EXE with PyInstaller
+    - name: Build EXE (Folder Mode)
       shell: cmd
       run: |
-        pyinstaller --noconfirm --onefile --console --clean ^
-                    --hidden-import sklearn.neighbors._partition_nodes ^
-                    --hidden-import sklearn.utils._cython_blas ^
-                    --hidden-import sklearn.utils._typedefs ^
-                    --hidden-import sklearn.neighbors._quad_tree ^
-                    --hidden-import sklearn.tree._utils ^
+        :: 核心修改点：
+        :: 1. 去掉 --onefile，使用默认的文件夹模式
+        :: 2. 使用 --collect-all sklearn，这是处理 sklearn 报错的最暴力也最有效的手段
+        :: 3. 去掉之前手写的 hidden-import，让 collect-all 自动扫描所有二进制文件
+        pyinstaller --noconfirm --onedir --console --clean ^
+                    --collect-all sklearn ^
                     run.py
-        
-    - name: Prepare Release Folder
+
+    - name: Prepare Release Package
       shell: cmd
       run: |
-        mkdir release_package
-        copy dist\run.exe release_package\Bili_Downloader.exe
-        if exist music_model.pkl copy music_model.pkl release_package\
-        :: 下载 32 位专用下载器
-        curl -L -o release_package\yt-dlp.exe https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_x86.exe
+        :: 创建最终的发布文件夹
+        mkdir BiliDownloader_Win7_x86
+        
+        :: 1. 将 PyInstaller 生成的整个文件夹复制过来
+        xcopy /E /I dist\run\* BiliDownloader_Win7_x86\
+        
+        :: 2. 将训练好的模型放入该文件夹
+        if exist music_model.pkl copy music_model.pkl BiliDownloader_Win7_x86\
+        
+        :: 3. 下载 32 位专用的 yt-dlp 放入该文件夹
+        curl -L -o BiliDownloader_Win7_x86\yt-dlp.exe https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_x86.exe
+        
+        :: 4. 检查模型路径（可选，确保模型和 exe 在一起）
+        echo 当前包内容如下：
+        dir BiliDownloader_Win7_x86\
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: Bili_Win7_32bit_Ready
-        path: release_package\
+        name: BiliDownloader_Win7_32bit_Folder
+        path: BiliDownloader_Win7_x86\
