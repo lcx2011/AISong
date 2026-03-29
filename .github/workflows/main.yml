@@ -1,4 +1,4 @@
-name: Build for Win7 32-bit (Ultimate Compatibility)
+name: Build for Win7 32-bit (Vintage Compatibility)
 
 on:
   push:
@@ -23,43 +23,41 @@ jobs:
       shell: cmd
       run: |
         python -m pip install --upgrade pip setuptools wheel
-        :: 使用 1.19.3 版本，这是 Win7 兼容性最好的 NumPy 版本
+        :: 强制安装 NumPy 1.19.3 和旧版 PyInstaller
         python -m pip install --only-binary=:all: numpy==1.19.3
         python -m pip install --only-binary=:all: scipy==1.5.4
         python -m pip install --only-binary=:all: scikit-learn==0.24.2
         python -m pip install --only-binary=:all: pandas==1.1.5
-        python -m pip install requests jieba joblib pyinstaller>=6.0.0
+        python -m pip install requests jieba joblib
+        :: 关键：回退到 PyInstaller 5.13.2，它对 Win7 兼容性极佳
+        python -m pip install pyinstaller==5.13.2
 
     - name: Train AI Model
       shell: cmd
       run: |
         python train.py
 
-    - name: Build EXE with PyInstaller (Full Collection Mode)
+    - name: Build EXE (Vintage Mode)
       shell: cmd
       run: |
-        :: --collect-all 是 PyInstaller 的强力模式，会将库的所有依赖 DLL 全部强制抓取
+        :: 不再使用 PyInstaller 6+ 的 _internal 文件夹
+        :: 所有 DLL 会直接铺在文件夹根目录
         pyinstaller --noconfirm --onedir --console --clean ^
                     --name "Bili_Downloader" ^
-                    --collect-all numpy ^
-                    --collect-all pandas ^
-                    --collect-all sklearn ^
                     --hidden-import sklearn.utils._cython_blas ^
                     run.py
 
-    - name: Finalize Release Package
+    - name: Finalize Package
       shell: cmd
       run: |
         cd dist\Bili_Downloader
         copy ..\..\music_model.pkl .
         :: 下载 32 位 yt-dlp
         curl -L -o yt-dlp.exe https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_x86.exe
-        :: 额外附赠一个 VC 运行库安装包，万一用户还是跑不起来，可以手动装
-        curl -L -o VC_Redist_x86.exe https://aka.ms/vs/17/release/vc_redist.x86.exe
         cd ..\..
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: Bili_Win7_32bit_Full_Fix
+        name: Bili_Win7_32bit_Vintage
         path: dist/Bili_Downloader/
