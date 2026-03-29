@@ -1,4 +1,4 @@
-name: Build for Win7 32-bit (Folder Mode)
+name: Build for Win7 32-bit (Professional Folder Mode)
 
 on:
   push:
@@ -19,60 +19,54 @@ jobs:
         python-version: '3.8.10'
         architecture: 'x86'
 
-    - name: Install Dependencies
+    - name: Install Golden Combo Dependencies
       shell: cmd
       run: |
         python -m pip install --upgrade pip setuptools wheel
-        echo 正在安装 Python 3.8 32位 黄金版本组合...
-        
-        :: 强制安装具有 32位 预编译包的版本，完全避开编译
+        :: 强制安装确定的 32位 预编译版本，避开构建地狱
         python -m pip install --only-binary=:all: numpy==1.19.5
         python -m pip install --only-binary=:all: scipy==1.5.4
         python -m pip install --only-binary=:all: scikit-learn==0.24.2
         python -m pip install --only-binary=:all: pandas==1.1.5
-        
-        :: 安装必备工具（锁定 PyInstaller 版本以增加 Win7 兼容性）
-        python -m pip install requests jieba joblib threadpoolctl
-        python -m pip install pyinstaller==5.13.2
+        python -m pip install requests jieba joblib
+        :: 使用 6.x 版本的 PyInstaller 以获得 _internal 文件夹特性
+        python -m pip install pyinstaller>=6.0.0
 
     - name: Train AI Model
       shell: cmd
       run: |
-        echo 正在 Action 中训练模型，确保模型与环境完全匹配...
+        echo 正在生成 AI 模型...
         python train.py
-        
-    - name: Build EXE (Folder Mode)
+
+    - name: Build EXE with PyInstaller (Onedir Mode)
       shell: cmd
       run: |
-        :: 核心修改点：
-        :: 1. 去掉 --onefile，使用默认的文件夹模式
-        :: 2. 使用 --collect-all sklearn，这是处理 sklearn 报错的最暴力也最有效的手段
-        :: 3. 去掉之前手写的 hidden-import，让 collect-all 自动扫描所有二进制文件
+        :: --onedir: 文件夹模式
+        :: --name: 指定生成 exe 的名称
+        :: PyInstaller 6+ 会自动把依赖项移入 _internal 文件夹
         pyinstaller --noconfirm --onedir --console --clean ^
-                    --collect-all sklearn ^
+                    --name "Bili_Downloader" ^
+                    --hidden-import sklearn.utils._cython_blas ^
+                    --hidden-import sklearn.neighbors._partition_nodes ^
                     run.py
 
-    - name: Prepare Release Package
+    - name: Finalize Release Package
       shell: cmd
       run: |
-        :: 创建最终的发布文件夹
-        mkdir BiliDownloader_Win7_x86
+        :: 1. 进入 PyInstaller 生成的目录
+        cd dist\Bili_Downloader
         
-        :: 1. 将 PyInstaller 生成的整个文件夹复制过来
-        xcopy /E /I dist\run\* BiliDownloader_Win7_x86\
+        :: 2. 将 AI 模型放入主目录（和 exe 在一起）
+        copy ..\..\music_model.pkl .
         
-        :: 2. 将训练好的模型放入该文件夹
-        if exist music_model.pkl copy music_model.pkl BiliDownloader_Win7_x86\
+        :: 3. 下载 32 位 yt-dlp 放入主目录
+        curl -L -o yt-dlp.exe https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_x86.exe
         
-        :: 3. 下载 32 位专用的 yt-dlp 放入该文件夹
-        curl -L -o BiliDownloader_Win7_x86\yt-dlp.exe https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_x86.exe
-        
-        :: 4. 检查模型路径（可选，确保模型和 exe 在一起）
-        echo 当前包内容如下：
-        dir BiliDownloader_Win7_x86\
+        :: 4. 返回根目录，把整个文件夹压缩（通过 Action 上传）
+        cd ..\..
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: BiliDownloader_Win7_32bit_Folder
-        path: BiliDownloader_Win7_x86\
+        name: Bili_Win7_32bit_Professional_Pack
+        path: dist/Bili_Downloader/
